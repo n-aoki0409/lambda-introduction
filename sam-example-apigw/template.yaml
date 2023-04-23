@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Web Form Example
+
+Parameters:
+  MailFrom:
+    Type: String
+  BucketName:
+    Type: String
+    Default: web-example-00001234-naoki
+
+Globals:
+  Function:
+    Timeout: 3
+    Environment:
+      Variables:
+        MAILFROM: !Ref MailFrom
+        SEQUENCETABLE: !Ref SequenceTable
+        USERTABLE: !Ref UserTable
+        SAVEBUCKET: contents-00001234-naoki
+
+Resources:
+  UserRegistFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/example-lambda-role
+      Events:
+        HelloWorld:
+          Type: HttpApi
+          Properties:
+            Path: /userregist
+            Method: post
+            ApiId: !Ref MyHttpApi
+
+  MyHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration: true
+      Domain:
+        DomainName: api.n-aoki0409-example.com
+        CertificateArn: !Sub arn:aws:acm:ap-northeast-1:${AWS::AccountId}:certificate/6ff15f6f-fbe9-4537-9560-383e4b61db17
+        EndpointConfiguration: REGIONAL
+        Route53:
+          HostedZoneId: Z10361781MFD2DS5CW1I0
+
+  S3FormBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref BucketName
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: "*"
+            Action: S3:GetObject
+            Resource: !Join
+              - ""
+              - - "arn:aws:s3:::"
+                - !Ref S3FormBucket
+                - /*
+      Bucket: !Ref S3FormBucket
+
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: user
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 3
+        WriteCapacityUnits: 3
+
+  SequenceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: sequence
+      AttributeDefinitions:
+        - AttributeName: tablename
+          AttributeType: S
+      KeySchema:
+        - AttributeName: tablename
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 3
+        WriteCapacityUnits: 3
+
+Outputs:
+  MyFunctionArn:
+    Value: !GetAtt UserRegistFunction.Arn
+  MyFormBucketName:
+    Value: !Ref S3FormBucket
+  WebSiteURL:
+    Value: !GetAtt S3FormBucket.WebsiteURL
+  MySequenceTableName:
+    Value: !Ref SequenceTable
+  MyUserTableName:
+    Value: !Ref UserTable

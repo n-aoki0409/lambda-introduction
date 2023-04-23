@@ -1,0 +1,9 @@
+[
+	{
+		"ResourceType": "AWS::S3::Bucket",
+		"LogicalResourceId": "MyBucket",
+		"ResourceIdentifier": {
+			"BucketName": "example-read-00001234-naoki"
+		}
+	}
+]

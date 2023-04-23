@@ -1,0 +1,1 @@
+aws s3 cp lambda.png s3://example-read-00001234-naoki
